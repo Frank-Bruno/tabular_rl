@@ -1,4 +1,6 @@
 from tabular_rl.envs.random_known_dynamics_env import RandomKnownDynamicsEnv
+#from tabular_rl.src.known_dynamics_env import KnownDynamicsEnv
+from tabular_rl import optimum_values as optimum
 import numpy as np
 import matplotlib.pyplot as plt
 from tabular_rl import finite_mdp_utils as fmdp
@@ -9,6 +11,8 @@ class MonteCarlo(RandomKnownDynamicsEnv):
     def __init__(self, S: int, A: int, epsilon: float):
         self.policy = fmdp.get_uniform_policy_for_fully_connected(S, A)
         self.epsilon = epsilon
+        self.S = S
+        self.A = A
         RandomKnownDynamicsEnv.__init__(self, S, A)
 
     def step_by_policy(self, action):
@@ -38,7 +42,7 @@ class MonteCarlo(RandomKnownDynamicsEnv):
 
         # Set the initial state and take the initial action
         env.current_observation_or_state = initial_state
-        ob, reward, gameOver, history = env.step_by_policy(initial_action)
+        ob, reward, gameOver, history = env.step(initial_action)
         rewards_tp1[0] = reward
         taken_actions[0] = initial_action
         states[0] = initial_state
@@ -50,7 +54,7 @@ class MonteCarlo(RandomKnownDynamicsEnv):
                 taken_actions[t] = np.random.choice(list_of_actions)
             else:
                 taken_actions[t] = choices(list_of_actions, weights=weights)[0]
-            ob, reward, gameOver, history = env.step_by_policy(taken_actions[t])
+            ob, reward, gameOver, history = env.step(taken_actions[t])
             rewards_tp1[t] = reward
 
         return taken_actions, rewards_tp1, states
@@ -106,28 +110,36 @@ class MonteCarlo(RandomKnownDynamicsEnv):
     
     def plot_learning_curve(self, rewards_per_episode, window_size=1):
         # Calcular a média das recompensas por episódio
-        rewards_mean = [np.mean(rewards_per_episode[max(0, i-window_size):i+1]) for i in range(len(rewards_per_episode))]
+        #rewards_mean = [np.mean(rewards_per_episode[max(0, i-window_size):i+1]) for i in range(len(rewards_per_episode))]
+        rewards_sum = [np.sum(rewards_per_episode)]
 
         # Plotar a curva de aprendizado suavizada
-        plt.plot(rewards_mean)
+        plt.plot(rewards_sum)
         plt.xlabel('Episódio')
         plt.ylabel('Recompensa Média (Média de {} episódios)'.format(window_size))
         plt.show()
 
 
 if __name__ == "__main__":
-    env = MonteCarlo(3, 2, 0.05)
-    num_steps = 100
-    rewardsTable = np.array([[[1, 1, 1],
-                              [1, 1, 80]],
-                             [[1, 1, 1],
-                              [1, 10, 1]],
-                             [[1, 1, 1],
-                              [30, 1, 1]]])
-    env.rewardsTable = rewardsTable
+    env = MonteCarlo(10, 5, 0.05)
+    num_steps = 1000
+    #rewardsTable = np.array([[[1, 1, 1],
+    #                          [1, 80, 1]],
+    #                         [[1, 1, 1],
+    #                          [1, 10, 1]],
+    #                         [[1, 1, 1],
+    #                          [30, 1, 1]]])
+    #nextStateProbability = np.array([[[0.5, 0.5, 0],
+    #                                  [0.9, 0.1, 0]],
+    #                                 [[0, 0.5, 0.5],
+    #                                  [0, 0.2, 0.8]],
+    #                                 [[0, 0, 1],
+    #                                  [0, 0, 1]]])
+    #env.rewardsTable = rewardsTable
+    #env.nextStateProbability = nextStateProbability
     #env.nextStateProbability = nextStateProbability
     print("##########Teste##############")
-    updated_policy, Q, rewards_per_episode = env.mces(env, num_steps, num_episodes=100)
+    updated_policy, Q, rewards_per_episode = env.mces(env, num_steps, num_episodes=10000)
     print("Updated policy:")
     print(updated_policy)
     print("Q_table:")
@@ -135,4 +147,25 @@ if __name__ == "__main__":
     #print(nextStateProbability)
     #print("Next state probability:")
     #print(env.nextStateProbability)
-    env.plot_learning_curve(rewards_per_episode)
+   
+    #env.plot_learning_curve(rewards_per_episode)
+    
+    acValu = optimum.compute_optimal_action_values(env)
+    optimPoli = fmdp.convert_action_values_into_policy(acValu[0])
+    print("optmimal policy:")
+    print(optimPoli)
+    
+    NUM_EPISODES = 10000
+    WINDOW_SIZE = 100
+    
+    a = fmdp.run_several_episodes(env, updated_policy,num_episodes=NUM_EPISODES)
+    b = fmdp.run_several_episodes(env, optimPoli,num_episodes=NUM_EPISODES)
+    
+    a_mean = [np.mean(a[i:min(NUM_EPISODES, i+WINDOW_SIZE)]) for i in range(NUM_EPISODES-WINDOW_SIZE)]
+    b_mean = [np.mean(b[i:min(NUM_EPISODES, i+WINDOW_SIZE)]) for i in range(NUM_EPISODES-WINDOW_SIZE)]
+
+    plt.plot(a_mean, label="Monte Carlo")
+    plt.plot(b_mean, label="Optimum Policy")
+    plt.legend(bbox_to_anchor=(1,1))
+    plt.show()
+    
