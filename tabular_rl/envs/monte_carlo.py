@@ -102,19 +102,19 @@ class MonteCarlo(RandomKnownDynamicsEnv):
                 # Update policy
                 for s in range(env.S):
                     self.policy[s] = self.softmax(Q[s])
+                    #self.policy[s] = np.argmax(Q[s])
 
                 # Track total reward for this episode
                 rewards_per_episode.append(np.sum(rewards_tp1))
-
             return self.policy, Q, rewards_per_episode
     
-    def plot_learning_curve(self, rewards_per_episode, window_size=1):
+    def plot_learning_curve(self, rewards_per_episode, window_size=100):
         # Calcular a média das recompensas por episódio
-        #rewards_mean = [np.mean(rewards_per_episode[max(0, i-window_size):i+1]) for i in range(len(rewards_per_episode))]
-        rewards_sum = [np.sum(rewards_per_episode)]
+        rewards_mean = [np.mean(rewards_per_episode[max(0, i-window_size):i+1]) for i in range(len(rewards_per_episode))]
+        #rewards_sum = [np.sum(rewards_per_episode)]
 
         # Plotar a curva de aprendizado suavizada
-        plt.plot(rewards_sum)
+        plt.plot(rewards_mean)
         plt.xlabel('Episódio')
         plt.ylabel('Recompensa Média (Média de {} episódios)'.format(window_size))
         plt.show()
@@ -122,7 +122,7 @@ class MonteCarlo(RandomKnownDynamicsEnv):
 
 if __name__ == "__main__":
     env = MonteCarlo(10, 5, 0.05)
-    num_steps = 1000
+    num_steps = 100
     #rewardsTable = np.array([[[1, 1, 1],
     #                          [1, 80, 1]],
     #                         [[1, 1, 1],
@@ -142,8 +142,11 @@ if __name__ == "__main__":
     updated_policy, Q, rewards_per_episode = env.mces(env, num_steps, num_episodes=10000)
     print("Updated policy:")
     print(updated_policy)
-    print("Q_table:")
-    print(Q)
+    updated_policy = fmdp.convert_action_values_into_policy(Q)
+    print("Updated policy 2:")
+    print(updated_policy)
+    #print("Q_table:")
+    #print(Q)
     #print(nextStateProbability)
     #print("Next state probability:")
     #print(env.nextStateProbability)
@@ -155,8 +158,8 @@ if __name__ == "__main__":
     print("optmimal policy:")
     print(optimPoli)
     
-    NUM_EPISODES = 10000
-    WINDOW_SIZE = 100
+    NUM_EPISODES = 100
+    WINDOW_SIZE = 10
     
     a = fmdp.run_several_episodes(env, updated_policy,num_episodes=NUM_EPISODES)
     b = fmdp.run_several_episodes(env, optimPoli,num_episodes=NUM_EPISODES)
